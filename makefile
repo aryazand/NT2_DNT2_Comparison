@@ -5,7 +5,7 @@ PROCESSED_FASTA = $(FASTQ:fastq=fasta)
 ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
 BED = $(ALIGNED_READS_SAM:sam=bed)
 
-@echo FASTQ
+@echo $(FASTQ)
 
 .PHONY: all clean
 

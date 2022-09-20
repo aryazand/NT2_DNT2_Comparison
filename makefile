@@ -18,6 +18,8 @@ all: $(PROCESSED_FASTQ)
 #   - remove barcode 
 
 $(PROCESSED_FASTQ): $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), %.fastq.gz): $(filter %, $(FASTQ)) Scripts/process_fastq.sh
+	echo $<
+	echo $@
 	Scripts/process_fastq.sh -i $< -o $(PROCESSED_FASTQ_DESTINATION_FOLDER)
 	 
 # Step 2: Align reads to genome and outputs a bam file

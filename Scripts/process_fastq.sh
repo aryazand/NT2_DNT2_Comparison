@@ -12,4 +12,4 @@ do
 done
 
 mkdir -p $output_folder
-./Scripts/TrimGalore-0.6.0/trim_galore --paired --small_rna --dont_gzip -j 4 --ouput_dir --fastqc $output_folder $i
+./Scripts/TrimGalore-0.6.0/trim_galore --paired --small_rna --dont_gzip -j 4 --output_dir $output_folder $input_fastq

@@ -1,11 +1,13 @@
 #!/bin/bash
 
 FASTQ = $(shell find Raw_Data -type f -name '*.fastq.gz')
+FASTQ_TRIMMED = $(addprefix Process_Data/Trimmed/, $(notdir $(FASTQ)))
 PROCESSED_FASTA = $(FASTQ:fastq=fasta)
 ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
 BED = $(ALIGNED_READS_SAM:sam=bed)
 
 $(info FASTQ="$(FASTQ)")
+$(info FASTQ_TRIMMED="$(FASTQ_TRIMMED)")
 
 .PHONY: all clean
 

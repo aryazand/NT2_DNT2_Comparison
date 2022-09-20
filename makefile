@@ -1,8 +1,9 @@
 #!/bin/bash
 
 PROCESSED_FASTQ_DESTINATION_FOLDER = Processed_Data/Trimmed/
+FASTQ_LANE_NAMES = $(shell basename $(shell ls -d Raw_Data/*/))
 FASTQ = $(shell find Raw_Data -type f -name '*.fastq.gz')
-FASTQ_TRIMMED = $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), $(notdir $(FASTQ)))
+PROCESSED_FASTQ = $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), $(addsuffix .fastq.gz, $(FASTQ_LANE_NAMES)))
 PROCESSED_FASTA = $(FASTQ:fastq=fasta)
 ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
 BED = $(ALIGNED_READS_SAM:sam=bed)
@@ -17,7 +18,7 @@ all: $(FASTQ_TRIMMED)
 #   - remove PCR duplicates
 #   - remove barcode 
 
-$(FASTQ_TRIMMED): Processed_Data/Trimmed/%.fastq.gz: $(filter %.fastq.gz, $(FASTQ)) Scripts/process_fastq.sh
+$(PROCESSED_FASTQ): $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), %.fastq.gz): $(filter %, $(FASTQ)) Scripts/process_fastq.sh
 	Scripts/process_fastq.sh -i $< -o $(PROCESSED_FASTQ_DESTINATION_FOLDER)
 	 
 # Step 2: Align reads to genome and outputs a bam file

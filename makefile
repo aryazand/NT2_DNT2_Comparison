@@ -20,7 +20,7 @@ all: $(PROCESSED_FASTQ)
 
 .SECONDEXPANSION:
 $(PROCESSED_FASTQ): Processed_Data/Trimmed/%.fastq.gz: $$(wildcard ./Raw_Data/%/*.fastq.gz) Scripts/process_fastq.sh
-	Scripts/process_fastq.sh -i $(wordlist 1,2, $^) -o $(PROCESSED_FASTQ_DESTINATION_FOLDER)
+	Scripts/process_fastq.sh -i $(word 1, $^) -i $(word 2, $^) -o $(PROCESSED_FASTQ_DESTINATION_FOLDER)
 	 
 # Step 2: Align reads to genome and outputs a bam file
 #   - use bowtie2 to align to genome and spike-in genome

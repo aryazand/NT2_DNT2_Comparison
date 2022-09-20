@@ -4,3 +4,4 @@
 .Ruserdata
 
 *.fastq
+/Raw_Data/*

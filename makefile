@@ -1,9 +1,10 @@
 #!/bin/bash
 
-PROCESSED_FASTQ_DESTINATION_FOLDER = Processed_Data/Trimmed/
-FASTQ_LANE_NAMES = $(shell basename $(shell ls -d Raw_Data/*/))
-FASTQ = $(shell find Raw_Data -type f -name '*.fastq.gz')
-PROCESSED_FASTQ = $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), $(addsuffix .fastq.gz, $(FASTQ_LANE_NAMES)))
+PROCESSED_FASTQ_DESTINATION_FOLDER = Processed_Data/Trimmed
+
+FASTQ_FILES = $(shell find Raw_Data -type f -name '*.fastq.gz')
+FASTQ_LANE_NAMES = $(sort $(patsubst Raw_Data/%/, %, $(dir $(FASTQ_FILES))))
+PROCESSED_FASTQ = $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER)/, $(addsuffix .fastq.gz, $(FASTQ_LANE_NAMES)))
 ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
 BED = $(ALIGNED_READS_SAM:sam=bed)
 
@@ -17,10 +18,9 @@ all: $(PROCESSED_FASTQ)
 #   - remove PCR duplicates
 #   - remove barcode 
 
-$(PROCESSED_FASTQ): $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), %.fastq.gz): $(filter %, $(FASTQ)) Scripts/process_fastq.sh
-	echo $<
-	echo $@
-	Scripts/process_fastq.sh -i $< -o $(PROCESSED_FASTQ_DESTINATION_FOLDER)
+.SECONDEXPANSION:
+$(PROCESSED_FASTQ): Processed_Data/Trimmed/%.fastq.gz: $$(wildcard ./Raw_Data/%/*.fastq.gz) Scripts/process_fastq.sh
+	Scripts/process_fastq.sh -i $(wordlist 1,2, $^) -o $(PROCESSED_FASTQ_DESTINATION_FOLDER)
 	 
 # Step 2: Align reads to genome and outputs a bam file
 #   - use bowtie2 to align to genome and spike-in genome

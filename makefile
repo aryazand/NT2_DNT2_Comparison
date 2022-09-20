@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FASTQ = $(shell find flac/ -type f -name '*.flac')
+FASTQ = $(shell find Raw_Data -type f -name '*.fastq.gz')
 PROCESSED_FASTA = $(FASTQ:fastq=fasta)
 ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
 BED = $(ALIGNED_READS_SAM:sam=bed)

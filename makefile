@@ -4,13 +4,12 @@ PROCESSED_FASTQ_DESTINATION_FOLDER = Processed_Data/Trimmed/
 FASTQ_LANE_NAMES = $(shell basename $(shell ls -d Raw_Data/*/))
 FASTQ = $(shell find Raw_Data -type f -name '*.fastq.gz')
 PROCESSED_FASTQ = $(addprefix $(PROCESSED_FASTQ_DESTINATION_FOLDER), $(addsuffix .fastq.gz, $(FASTQ_LANE_NAMES)))
-PROCESSED_FASTA = $(FASTQ:fastq=fasta)
 ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
 BED = $(ALIGNED_READS_SAM:sam=bed)
 
 .PHONY: all clean
 
-all: $(FASTQ_TRIMMED)
+all: $(PROCESSED_FASTQ)
 
 # Step 1: use fastx to do the following:  
 #   - convert fastq to fasta

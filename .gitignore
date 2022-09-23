@@ -6,3 +6,4 @@
 *.fastq
 /Raw_Data/*
 /Processed_Data/*
+/Scratch/*

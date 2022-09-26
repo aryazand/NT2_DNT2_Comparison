@@ -1,61 +1,136 @@
-#!/bin/bash
 
-PROCESSED_FASTQ_DESTINATION_FOLDER = Processed_Data/FASTQ
+##################### ANALYSIS PARAMETERS ##################### 
+PROCESSED_FASTQ_FOLDER = Processed_Data/FASTQ
+ALIGNMENT_FOLDER = Processed_Data/Aligned_Reads/
+RAW_DATA_FOLDER = Raw_Data
+BOWTIE_INDEX = ~/bioinformatics_tools/genomes/townecombined
+HUMAN_GENOME_GTF = /home/arya/bioinformatics_tools/genomes/alias/hg38/ensembl_gtf/default/hg38.gtf.gz
+UMI_SIZE = 8
 
-FASTQ_FILES_R1 = $(shell find Raw_Data -type f -name '*_R1_*.fastq.gz')
-FASTQ_FILES_R2 = $(shell find Raw_Data -type f -name '*_R2_*.fastq.gz')
-FASTQ_FILES = $(FASTQ_FILES_R1) $(FASTQ_FILES_R2)
+###############################################################
 
-FASTQ_TRIMMED_R1 = $(patsubst Raw_Data/%.fastq.gz, $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_val_1.fq, $(FASTQ_FILES_R1))
-FASTQ_TRIMMED_R2 = $(patsubst Raw_Data/%.fastq.gz, $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_val_2.fq, $(FASTQ_FILES_R2))
-FASTQ_TRIMMED = $(FASTQ_TRIMMED_R1) $(FASTQ_TRIMMED_R2)
+#################### VARIABLES ################################
 
-FASTQ_PROCESSED = $(patsubst Raw_Data/%.fastq.gz, $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_processed.fastq, $(FASTQ_FILES))
-FASTQC = $(FASTQ_PROCESSED:%.fastq=%_fastqc.html)
-FASTQ_LANE_NAMES = $(sort $(patsubst Raw_Data/%/, %, $(dir $(FASTQ_FILES))))
+# Original Fastq files
+FASTQ_FILES_R1 := $(shell find $(RAW_DATA_FOLDER) -type f -name '*_R1_*.fastq.gz')
+FASTQ_FILES_R2 := $(shell find $(RAW_DATA_FOLDER) -type f -name '*_R2_*.fastq.gz')
+FASTQ_FILES := $(FASTQ_FILES_R1) $(FASTQ_FILES_R2)
+FASTQ_LANE_NAMES := $(sort $(patsubst $(RAW_DATA_FOLDER)/%/, %, $(dir $(FASTQ_FILES))))
+
+# Trimmed Fastq 
+FASTQ_TRIMMED_R1 := $(patsubst Raw_Data/%.fastq.gz, $(PROCESSED_FASTQ_FOLDER)/%_trimmed.fq, $(FASTQ_FILES_R1))
+FASTQ_TRIMMED_R2 := $(patsubst Raw_Data/%.fastq.gz, $(PROCESSED_FASTQ_FOLDER)/%_trimmed.fq, $(FASTQ_FILES_R2))
+FASTQ_TRIMMED := $(FASTQ_TRIMMED_R1) $(FASTQ_TRIMMED_R2)
+
+# Processed Fastq 
+FASTQ_DEDUP_R1 := $(FASTQ_TRIMMED_R1:%_trimmed.fq=%_dedup.fastq)
+FASTQ_DEDUP_R2 := $(FASTQ_TRIMMED_R2:%_trimmed.fq=%_dedup.fastq)
+FASTQ_DEDUP := $(FASTQ_DEDUP_R1) $(FASTQ_DEDUP_R2)
+FASTQ_PAIRED_R1 := $(addsuffix .paired.fq, $(FASTQ_DEDUP_R1))
+FASTQ_PAIRED_R2 := $(addsuffix .paired.fq, $(FASTQ_DEDUP_R2))
+FASTQ_PAIRED := $(FASTQ_PAIRED_R1) $(FASTQ_PAIRED_R2)
+
+# Quality Analysis 
+FASTQC := $(FASTQ_PAIRED:%.paired.fq=%.paired_fastqc.html)
+LENGTH_DISTRIBUTION := $(PROCESSED_FASTQ_FOLDER)/$(FASTQ_LANE_NAMES)/$(FASTQ_LANE_NAMES)_lengthDistribution.tsv
+FASTQ_QUALITY_ANALYSIS := $(FASTQC) $(LENGTH_DISTRIBUTION) 
+
+# Aligned Reads 
+ALIGNED_READS_NO_EXT := $(addprefix $(ALIGNMENT_FOLDER), $(FASTQ_LANE_NAMES))
+ALIGNED_READS_SAM := $(addsuffix .sam, $(ALIGNED_READS_NO_EXT))
+ALIGNED_READS_BAM := $(ALIGNED_READS_SAM:sam=bam)
+BED := $(ALIGNED_READS_SAM:sam=bed)
+FEATURESCOUNTS := $(ALIGNED_READS_BAM:bam=fc.txt)
+##############################################################
+
+.PHONY: all clean reset make_directories variables
+.INTERMEDIATE: $(FASTQ_TRIMMED) $(FASTQ_DEDUP) $(ALIGNED_READS_SAM)
+
+all: make_directories $(FASTQ_PAIRED) quality_analysis $(ALIGNED_READS_BAM) $(FEATURESCOUNTS) clean
+
+quality_analysis: $(FASTQC) $(LENGTH_DISTRIBUTION) 
+
+variables: 
+	@echo $(FASTQ_QUALITY_ANALYSIS)
+
+# make necessary directories
+make_directories:
+	@mkdir -p $(PROCESSED_FASTQ_FOLDER)
+	@mkdir -p $(ALIGNMENT_FOLDER)
 
 
-ALIGNED_READS_BAM = $(PROCESSED_FASTA:fasta=bam)
-BED = $(ALIGNED_READS_SAM:sam=bed)
+################################################################################################################
+#                                                                                                              #
+#                                          PROCESSING OF RAW READS                                             #
+#                                                                                                              #
+################################################################################################################
 
-.PHONY: all clean
-
-all: $(FASTQ_PROCESSED) $(FASTQC) clean
-	
-# Step 1: 
-#		- remove adaptor_sequences using trim_galore  
-
+# Step 1: remove adaptor_sequences using trim_galore  
 .SECONDEXPANSION:
-$(FASTQ_TRIMMED): $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%.fq: $$(wildcard ./Raw_Data/$$(dir %)/*.fastq.gz)
-	@#Scripts/process_fastq.sh -i $(word 1, $^) -i $(word 2, $^) -o $(dir $@)
-	mkdir -p $(PROCESSED_FASTQ_DESTINATION_FOLDER)
-	trim_galore --paired --dont_gzip -j 4 --output_dir $(dir $@) $(wordlist 1,2, $^)
+$(FASTQ_TRIMMED_R1): $(PROCESSED_FASTQ_FOLDER)/%_R1_001_trimmed.fq: $$(wildcard $(RAW_DATA_FOLDER)/$$(dir %)/*.fastq.gz)
+	trim_galore --paired --dont_gzip -j 4 --output_dir $(dir $@) $^
+	mv $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_val_1.fq $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_trimmed.fq
+	mv $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_val_2.fq $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_trimmed.fq
 
-# Step 2 
-#		- deduplicate using seqkit 
+$(FASTQ_TRIMMED_R2): $(PROCESSED_FASTQ_FOLDER)/%_R2_001_trimmed.fq: $$(wildcard $(RAW_DATA_FOLDER)/$$(dir %)/*.fastq.gz)
+	trim_galore --paired --dont_gzip -j 4 --output_dir $(dir $@) $^
+	mv $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_val_1.fq $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_trimmed.fq
+	mv $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_val_2.fq $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_trimmed.fq
 
-$(FASTQ_PROCESSED): $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_processed.fastq: $$(wildcard $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_val_*.fq)
+# Step 2: deduplicate using seqkit 
+$(FASTQ_DEDUP): %_dedup.fastq: %_trimmed.fq
 	seqkit rmdup -s -o $@ $<
-	
-# Step 3
-#		- run quality analysis on processed fastq files using fastqc 
 
-$(FASTQC): $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_processed_fastqc.html: $(PROCESSED_FASTQ_DESTINATION_FOLDER)/%_processed.fastq
+# Step 3: re-pair reads with fastq_pair 
+$(FASTQ_PAIRED_R1): %_R1_001_dedup.fastq.paired.fq: %_R1_001_dedup.fastq %_R2_001_dedup.fastq
+	fastq_pair $^
+
+$(FASTQ_PAIRED_R2): %_R2_001_dedup.fastq.paired.fq: %_R1_001_dedup.fastq %_R2_001_dedup.fastq
+	fastq_pair $^
+
+
+################################################################################################################
+#                                                                                                              #
+#                                      QUALITY ANALYSIS OF READS                                               #
+#                                                                                                              #
+################################################################################################################
+
+# Assess "Degradation Ratio" (per PMID: 33992117) 
+$(LENGTH_DISTRIBUTION): $(PROCESSED_FASTQ_FOLDER)/%_lengthDistribution.tsv: $$(wildcard $(RAW_DATA_FOLDER)/$$(dir %)/*.fastq.gz)
+	flash -d $(dir $@) $^ 
+	@mv $(dir $@)/out.hist $@
+	@rm $(dir $@)/out*
+
+# Quality analysis on processed fastq files using fastqc 
+$(FASTQC): %.paired_fastqc.html: %.paired.fq
 	fastqc $< -o $(dir $@)
-	
-# Step 4: Align reads to genome and outputs a bam file
-#   - use bowtie2 to align to genome and spike-in genome
-#   - remove unaligned reads, remove multi-aligned reads 
-#   - use samtools to convert alignment to a bam file 
-#   - combine reads from multiple lanes (but same sample) into a single bam 
 
+################################################################################################################
+#                                                                                                              #
+#                                   ALIGNMENT TO GENOME & READ SUMMARIZATION                                   #
+#                                                                                                              #
+################################################################################################################
 
-# Step 3: Convert bam to bed files
-#   - use bedtools 
+# Step 1: Align reads to genome using bowtie with the following settings
+#		- trim UMIs from 5' and 3' end 
+#		- paired alignment, first fastq is forward and second fastq is reverse   
+$(ALIGNED_READS_SAM): %.sam: $$(wildcard $(PROCESSED_FASTQ_FOLDER)/$$(notdir %)/*_dedup.fastq.paired.fq)
+	bowtie -x $(BOWTIE_INDEX) --trim5 $(UMI_SIZE) --trim3 $(UMI_SIZE) --fr --best --allow-contain --sam --fullref --threads 4 -1 $(word 1, $^) -2 $(word 2, $^) $@
 
+# Step 2: Convert sam to sorted bam files
+$(ALIGNED_READS_BAM): %.bam: %.sam 
+	samtools view -u $< | samtools sort -o $@
 
-# Step 4: Differential Gene Analysis 
-#   - use bedtools  
+# Step 4: Assign to genomic features 
+$(FEATURESCOUNTS): %.fc.txt: %.bam 
+	featureCounts -p --countReadPairs -a $(HUMAN_GENOME_GTF) -t exon -g gene_id -o $@ $<
 
-clean:
-	rm $(FASTQ_TRIMMED)
+clean: 
+	@rm -f $(FASTQ_TRIMMED)
+	@rm -f $(FASTQ_DEDUP)
+
+reset:
+	rm -f $(FASTQ_TRIMMED)
+	rm -f $(FASTQ_DEDUP)
+	rm -f $(FASTQ_PAIRED)
+	rm -f $(FASTQC) 

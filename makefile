@@ -66,12 +66,12 @@ make_directories:
 
 # Step 1: remove adaptor_sequences using trim_galore  
 .SECONDEXPANSION:
-$(FASTQ_TRIMMED_R1): $(PROCESSED_FASTQ_FOLDER)/%_R1_001_trimmed.fq: $$(wildcard $(RAW_DATA_FOLDER)/$$(dir %)/*.fastq.gz)
+$(FASTQ_TRIMMED_R1): $(PROCESSED_FASTQ_FOLDER)/%_R1_001_trimmed.fq: $(RAW_DATA_FOLDER)/$$(dir %)/%_R1_001.fastq.gz $(RAW_DATA_FOLDER)/$$(dir %)/%_R2_001.fastq.gz
 	trim_galore --paired --dont_gzip -j 4 --output_dir $(dir $@) $^
 	mv $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_val_1.fq $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_trimmed.fq
 	mv $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_val_2.fq $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_trimmed.fq
 
-$(FASTQ_TRIMMED_R2): $(PROCESSED_FASTQ_FOLDER)/%_R2_001_trimmed.fq: $$(wildcard $(RAW_DATA_FOLDER)/$$(dir %)/*.fastq.gz)
+$(FASTQ_TRIMMED_R2): $(PROCESSED_FASTQ_FOLDER)/%_R2_001_trimmed.fq: $(RAW_DATA_FOLDER)/$$(dir %)/%_R1_001.fastq.gz $(RAW_DATA_FOLDER)/$$(dir %)/%_R2_001.fastq.gz
 	trim_galore --paired --dont_gzip -j 4 --output_dir $(dir $@) $^
 	mv $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_val_1.fq $(PROCESSED_FASTQ_FOLDER)/$*_R1_001_trimmed.fq
 	mv $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_val_2.fq $(PROCESSED_FASTQ_FOLDER)/$*_R2_001_trimmed.fq
@@ -95,7 +95,7 @@ $(FASTQ_PAIRED_R2): %_R2_001_dedup.fastq.paired.fq: %_R1_001_dedup.fastq %_R2_00
 ################################################################################################################
 
 # Assess "Degradation Ratio" (per PMID: 33992117) 
-$(LENGTH_DISTRIBUTION): $(PROCESSED_FASTQ_FOLDER)/%_lengthDistribution.tsv: $$(wildcard $(RAW_DATA_FOLDER)/$$(dir %)/*.fastq.gz)
+$(LENGTH_DISTRIBUTION): $(PROCESSED_FASTQ_FOLDER)/%_lengthDistribution.tsv: $(RAW_DATA_FOLDER)/$$(dir %)/%_R1_001.fastq.gz $(RAW_DATA_FOLDER)/$$(dir %)/%_R2_001.fastq.gz
 	flash -d $(dir $@) $^ 
 	@mv $(dir $@)/out.hist $@
 	@rm $(dir $@)/out*
